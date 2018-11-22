@@ -1,40 +1,70 @@
 package ca.mulloy.garagedoor;
 
-import android.content.Intent;
+import android.Manifest;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.pm.PackageManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.os.Looper;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.EditText;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
+import java.util.Locale;
 
-import ca.mulloy.garagedoor.utility.GPS;
-import ca.mulloy.garagedoor.utility.IGPSActivity;
+public class MainActivity extends AppCompatActivity
+        implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener  {
 
-public class MainActivity extends AppCompatActivity implements IGPSActivity {
-    private GPS gps;
+    private GoogleApiClient mGoogleApiClient;
+    private Location mLocation;
+    private LocationManager mLocationManager;
+    private LocationRequest mLocationRequest;
+    private FusedLocationProviderClient mFusedLocationClient;
+
+    private final static int FINE_LOCATION = 100;
+    private boolean mMyLocationEnabled;
 
     private TextView mLongitude;
     private TextView mLatitude;
+    private TextView mDistanceTxt;
 
-    private double mLongitude_val;
-    private double mLatitude_val;
+    private Double mLongitude_val;
+    private Double mLatitude_val;
+    private Double mMetres;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -47,14 +77,17 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
                             .setAction("Toggle", new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    Toast.makeText(MainActivity.this, "Door goes up or down", Toast.LENGTH_LONG).show();
-
-                                    new Thread(new Runnable(){
-                                        @Override
-                                        public void run() {
-                                            sendAction( "toggle1" );
-                                        }
-                                    }).start();
+                                    if (mMetres < 500) {
+                                        Toast.makeText(MainActivity.this, "Door goes up or down", Toast.LENGTH_LONG).show();
+                                        new Thread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                sendAction("toggle1");
+                                            }
+                                        }).start();
+                                    } else {
+                                        Toast.makeText(MainActivity.this, "Not close enough, sorry!", Toast.LENGTH_LONG).show();
+                                    }
 
                                 }
                             }).show();
@@ -62,16 +95,27 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
             });
         }
 
-        mLongitude_val = mLatitude_val = 0;
         mLongitude = (TextView) findViewById(R.id.longitude);
         mLatitude = (TextView) findViewById(R.id.latitude);
 
-        gps = new GPS(this);
+        mDistanceTxt = (TextView) findViewById(R.id.distanceDetail);
+        mMetres = null;
+
+        mDistanceTxt.setText("Application requires GPS location.");
+        mLongitude.setText( "undefined" );
+        mLatitude.setText( "");
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+
+        registerForLocation();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
@@ -91,40 +135,39 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    protected void onResume() {
-        if( !gps.isRunning() )
-            gps.resumeGPS();
+    private void calculateDistance() {
 
-        super.onResume();
-    }
+        String distance = "";
+        Double lat = 45.1683565;    // 254 Borden road
+        Double lng = -76.12503879999997;
 
-    @Override
-    protected void onStop() {
-        gps.stopGPS();
-        super.onStop();
-    }
+        if (mLatitude_val != null && mLongitude_val != null) {
+            mMetres = meterDistanceBetweenPoints(lat, lng, mLatitude_val, mLongitude_val);
 
-    @Override
-    public void locationChanged(double longitude, double latitude) {
-        mLongitude_val = longitude;
-        mLatitude_val = latitude;
-        runOnUiThread(changeLongLat);
-    }
-
-    private final Runnable changeLongLat = new Runnable() {
-        @Override
-        public void run() {
-            mLongitude.setText( ""+mLongitude_val );
-            mLatitude.setText("" + mLatitude_val );
+            if (mMetres < 501) {
+                distance = String.format(Locale.US, "%d", mMetres.intValue() ) + " m";
+            } else {
+                distance = String.format(Locale.US, "%.2f", (mMetres / 1000)) + " km";
+            }
         }
-    };
+        String message = "Distance from garage " + distance;
+        mDistanceTxt.setText(message);
+    }
 
-    @Override
-    public void displayGPSSettingsDialog() {
-        Toast.makeText(MainActivity.this, "Please enable GPS", Toast.LENGTH_LONG).show();
-        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-        startActivity(intent);
+    public static double meterDistanceBetweenPoints(double lat_a, double lng_a, double lat_b, double lng_b) {
+        float pk = (float) (180.f/Math.PI);
+
+        double a1 = lat_a / pk;
+        double a2 = lng_a / pk;
+        double b1 = lat_b / pk;
+        double b2 = lng_b / pk;
+
+        double t1 = Math.cos(a1) * Math.cos(a2) * Math.cos(b1) * Math.cos(b2);
+        double t2 = Math.cos(a1) * Math.sin(a2) * Math.cos(b1) * Math.sin(b2);
+        double t3 = Math.sin(a1) * Math.sin(b1);
+        double tt = Math.acos(t1 + t2 + t3);
+
+        return 6366000 * tt;
     }
 
     private void sendAction( String action ) {
@@ -148,6 +191,117 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
         } finally {
             if (urlConnection != null) {
                 urlConnection.disconnect();
+            }
+        }
+    }
+
+    private final Runnable changeLongLat = new Runnable() {
+        @Override
+        public void run() {
+            mLongitude.setText( "" + mLongitude_val );
+            mLatitude.setText( "" + mLatitude_val );
+
+            calculateDistance();
+        }
+    };
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+    }
+
+    LocationCallback mLocationCallback = new LocationCallback() {
+        @Override
+        public void onLocationResult(LocationResult locationResult) {
+            List<Location> locationList = locationResult.getLocations();
+            if (locationList.size() > 0) {
+                Location location = locationList.get(locationList.size() - 1);
+
+                mLongitude_val = location.getLongitude();
+                mLatitude_val = location.getLatitude();
+                runOnUiThread(changeLongLat);
+            }
+        }
+    };
+
+    public void registerForLocation() {
+        mMyLocationEnabled = false;
+
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                mMyLocationEnabled = true;
+            } else {
+                requestPermission();
+            }
+        } else {
+
+            mMyLocationEnabled = true;
+        }
+
+        if( mMyLocationEnabled == true ) {
+            LocationRequest locationRequest = new LocationRequest();
+            locationRequest.setInterval(2 * 60 * 1000);
+            locationRequest.setFastestInterval(2 * 60 * 1000);
+            locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+
+            mFusedLocationClient = LocationServices.getFusedLocationProviderClient( this );
+            mFusedLocationClient.requestLocationUpdates(locationRequest, mLocationCallback, Looper.myLooper());
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,String permissions[], int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        switch (requestCode) {
+            case FINE_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if ((grantResults.length > 0) && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    if (ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        registerForLocation();
+                    }
+                }
+                else {
+                    Toast.makeText(this, "Permission required to detect your location", Toast.LENGTH_LONG).show();
+                    mMyLocationEnabled = false;
+                }
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
+    }
+
+    private void requestPermission() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.ACCESS_FINE_LOCATION)) {
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+                new AlertDialog.Builder(this)
+                        .setTitle("Location Permission Needed")
+                        .setMessage("This app needs the Location permission, please accept to use location functionality")
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                //Prompt the user once explanation has MapView_Fragment shown
+                                ActivityCompat.requestPermissions( MainActivity.this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},FINE_LOCATION );
+                            }
+                        })
+                        .create()
+                        .show();
+            }
+            else {
+                // No explanation needed, we can request the permission.
+                ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},FINE_LOCATION );
             }
         }
     }
