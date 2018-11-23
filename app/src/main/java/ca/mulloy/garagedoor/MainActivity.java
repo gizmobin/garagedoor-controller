@@ -174,7 +174,7 @@ public class MainActivity extends AppCompatActivity
         URL url;
         HttpURLConnection urlConnection = null;
         try {
-            url = new URL("http://dev.mulloy.ca/garageDoor.php?action=" + action );
+            url = new URL("http://homeautomation.mulloy.ca/garageDoor.php?action=" + action );
             urlConnection = (HttpURLConnection)url.openConnection();
 
             InputStream in = urlConnection.getInputStream();
