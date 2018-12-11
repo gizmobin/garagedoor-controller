@@ -1,3 +1,7 @@
+def appVersionCode = 3
+def appVersionName = new Integer(new Date().format('yy'))-12 + new Date().format('.M.') + new Date().format('ddHHmm')
+
+
 apply plugin: 'com.android.application'
 
 android {
@@ -6,11 +10,17 @@ android {
 
     defaultConfig {
         applicationId "ca.mulloy.garagedoor"
+
         minSdkVersion 19
         targetSdkVersion 26
-        versionCode 2
-        versionName "1.1"
+
+        versionCode = appVersionCode
+        versionName = appVersionName
+
+        setProperty("archivesBaseName", "garagedoor-"+versionCode+"-"+versionName)
+
     }
+
     buildTypes {
         release {
             minifyEnabled false

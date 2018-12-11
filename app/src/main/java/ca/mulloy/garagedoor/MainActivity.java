@@ -247,8 +247,8 @@ public class MainActivity extends AppCompatActivity
 
         if( mMyLocationEnabled == true ) {
             LocationRequest locationRequest = new LocationRequest();
-            locationRequest.setInterval(2 * 60 * 1000);
-            locationRequest.setFastestInterval(2 * 60 * 1000);
+            locationRequest.setInterval(30 * 1000);
+            locationRequest.setFastestInterval(10 * 1000);
             locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
 
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient( this );
