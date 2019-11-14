@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "917279535263",
+    "firebase_url": "https://garagedoor-controller.firebaseio.com",
+    "project_id": "garagedoor-controller",
+    "storage_bucket": "garagedoor-controller.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917279535263:android:5c77b3a448d698f60272aa",
+        "android_client_info": {
+          "package_name": "ca.mulloy.garagedoor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "917279535263-41fcqkpklp8b73s2t9ji1m4m6n2milfg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ca.mulloy.garagedoor",
+            "certificate_hash": "036222c83aeb709ac1e3bbaca637811fee9c8341"
+          }
+        },
+        {
+          "client_id": "917279535263-d0a2qgf56k6eq9arm4ubes5mglq16he3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtWY1dEi3ET1JuCHwIsGD0Ot45avXCKoY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "917279535263-d0a2qgf56k6eq9arm4ubes5mglq16he3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
